@@ -1,5 +1,4 @@
 import java.sql.*;
-import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -41,7 +40,7 @@ public class airBnBeerUI {
 		
 		Scanner input = new Scanner(System.in);
 		
-		createUser(statement);
+		deleteUser(statement);
 		
 		
 		input.close();
@@ -125,8 +124,61 @@ public class airBnBeerUI {
 	{
 		String tableName = "user";
 		int uid = 0;
+		boolean check = false;
 		
 		Scanner input = new Scanner(System.in); 
+		
+		
+		do
+		{
+			System.out.println("Enter your user id to delete your account");
+			
+			//Gets the userID 
+			if(input.hasNextInt())
+			{
+				uid = input.nextInt();
+				
+				try
+				{
+					String querySQL = "SELECT * FROM " + tableName + " WHERE uid = " + "\'"+ uid + "\'";
+					System.out.println();
+					
+					String fname = "";
+					String lname = "";
+					java.sql.ResultSet rs = statement.executeQuery ( querySQL ) ;
+					
+					while(rs.next())
+					{
+						int id = rs.getInt(1);
+						fname = rs.getString(2);
+						lname = rs.getString(3);
+						System.out.println("Deleting");
+						System.out.println("User: " + fname + " " + lname + "UserID : " + id );
+					}
+					
+					String deleteSQL = "DELETE FROM " + tableName + " WHERE uid = " + uid;
+					System.out.println(deleteSQL);
+					
+					statement.executeUpdate ( deleteSQL ) ;
+					
+					System.out.println("Successfully deleted");
+					check = true;
+				}
+				catch (SQLException e)
+				{
+					System.out.println("Code: " + e.getErrorCode() + "  sqlState: " + e.getSQLState());
+					System.out.println("Failed connection");
+					System.out.println("Input a valid userID");
+				}
+				
+			}
+			else
+			{
+				System.out.println("INVALID USER ID");
+				System.out.println("Input a valid userID");
+			}
+		} while(check == false);
+		
 		
 	}
 	
