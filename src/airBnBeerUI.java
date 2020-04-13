@@ -1,8 +1,12 @@
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.sql.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Scanner;
+
 
 public class airBnBeerUI {
 
@@ -27,16 +31,62 @@ public class airBnBeerUI {
 				);
 		Statement statement = conn.createStatement ( ) ;
 
-		Scanner input = new Scanner(System.in);
-
-		//Get userID
-		int uid =checkUID(statement, input);
-		//createProperty(statement, uid, input);
-		//checkUID(statement);
-		checkAvailableProp(statement, input);
+		Scanner scanner = new Scanner(System.in);
 		
-		input.close();
+		exportCSV(statement);
+
+		//Gets the userID logged on this session
+		int uid =checkUID(statement, scanner);
+		
+		//Displays the main menu
+		inputMenu(statement, scanner, uid);
+		
+		scanner.close();
 		conn.close();
+	}
+	
+	/*
+	 * Exports results for data visualization
+	 */
+	public static void exportCSV(Statement statement)
+	{
+		
+		
+		// write header line containing column names       
+		
+		
+		String exportSQL = "SELECT MONTH(sdate), COUNT(*), SUM(cost) FROM Events GROUP BY MONTH(sdate)";
+		
+		try
+		{
+			BufferedWriter fileWriter = new BufferedWriter(new FileWriter("result.csv"));
+			fileWriter.write("Month,Number of Events, Earnings");
+			//Execute query and retrieve data
+			java.sql.ResultSet rs = statement.executeQuery ( exportSQL ) ;
+			
+			while(rs.next())
+			{
+				String month = rs.getString(1);
+				String num_events = rs.getString(2);
+				String earnings = rs.getString(3);
+				
+				String line = String.format("\"%s\",%s,%s", month, num_events, earnings);
+				
+				fileWriter.newLine();
+                fileWriter.write(line);
+			}
+			
+			fileWriter.close();
+		}
+		catch (SQLException e)
+		{
+			System.out.println("Code: " + e.getErrorCode() + "  sqlState: " + e.getSQLState());
+		}
+		catch (IOException e) {
+	        System.out.println("File IO error:");
+	        e.printStackTrace();
+	    }
+		
 	}
 	/*
 	 * TODO: Check user input is correct
@@ -60,8 +110,7 @@ public class airBnBeerUI {
 				uid = rs.getInt ( 1 ) + 1;
 				System.out.println(uid);
 			}
-
-			//Scanner input = new Scanner(System.in); 
+ 
 			System.out.println("Fill in the following information in the same order and space one option from the other in a single sentence");
 			System.out.println("");
 			System.out.println("1) First Name");
@@ -99,6 +148,8 @@ public class airBnBeerUI {
 
 			System.out.println("Code: " + e.getErrorCode() + "  sqlState: " + e.getSQLState());
 		}
+		
+		input.nextLine();
 
 	}
 
@@ -160,7 +211,54 @@ public class airBnBeerUI {
 				System.out.println("Input a valid userID");
 			}
 		} while(check == false);
+		
+		input.nextLine();
 
+	}
+	
+	public static void updatePayment(Statement statement, int uid, Scanner scanner) throws ParseException
+	{
+		String tableName = "payment";
+		
+		System.out.println("Fill in the following information in the same order and space one option from the other in a single sentence");
+		System.out.println("");
+		System.out.println("1) First_Name");
+		System.out.println("2) Last_Name");
+		System.out.println("3) Cardnumber");
+		System.out.println("4) CCV");
+		System.out.println("5) Expiry_Date");
+		System.out.println("6) Card_Type(i.e Visa, MasterCard, American Express)");
+		
+		String userInfo = scanner.nextLine();
+
+		String [] userInput = userInfo.split(" ");
+		
+		String cardNum = userInput[2];
+		String fName = userInput[0];
+		String lName = userInput[1];
+		String ccv = userInput[3];
+		String cardType = userInput[5];
+		
+		Date expDate = new SimpleDateFormat("MM/dd/yyyy").parse(userInput[4]);
+		java.sql.Date expSQLDate = new java.sql.Date(expDate.getTime());
+		
+		
+		String insertSQL = "INSERT INTO " + tableName + " VALUES (" + cardNum + ", " + uid + "," + "\'" + fName + "\'" + ", " + "\'" + lName + "\'" + ", " 
+				+ ccv + ", " + "\'" + expSQLDate + "\'," + "\'" + cardType + "\'" + ")";
+		
+		System.out.println( insertSQL );
+		
+		try
+		{
+			statement.executeUpdate( insertSQL );
+			System.out.println("Payment succesfully updated");
+			
+		} 
+		catch (SQLException e)
+		{
+			System.out.println("Code: " + e.getErrorCode() + "  sqlState: " + e.getSQLState());
+		}
+		scanner.nextLine();
 	}
 
 	/*
@@ -178,13 +276,17 @@ public class airBnBeerUI {
 		try
 		{
 			statement.executeUpdate( insertSQL );
+			System.out.println("Owner succesfully created");
 		} 
 		catch (SQLException e)
 		{
 			System.out.println("Code: " + e.getErrorCode() + "  sqlState: " + e.getSQLState());
 		}
 	}
-
+	
+	/*
+	 * Creates a property and updates it in the database	
+	 */
 	public static void createProperty(Statement statement, int userID, Scanner scanner) throws SQLException
 	{
 		String tableName = "property";
@@ -239,7 +341,6 @@ public class airBnBeerUI {
 
 				System.out.println("Succefully created and inserted property");
 				check = true;
-				scanner.close();
 			}
 			catch (SQLException e)
 			{
@@ -249,11 +350,12 @@ public class airBnBeerUI {
 				System.out.println("Input valid entries");
 			}
 		} while(check == false);
+		
+		scanner.nextLine();
 	}
 	
 	public static void checkAvailableProp(Statement statement, Scanner scanner) throws ParseException
 	{
-		String tableName = "property";
 		
 		System.out.println("Enter the following information in the same order and space each option input to view available listings");
 		System.out.println("1) City");
@@ -278,7 +380,7 @@ public class airBnBeerUI {
 		
 		System.out.println(querySQL);
 		System.out.println("");
-		System.out.println("PID   StreetNumber   City   Monthly_Price   Country   PostalCode   Property_Type   Features");
+		System.out.println("PID   StreetNumber   City   Monthly_Price   Country   PostalCode   Property_Type   4Features");
 		System.out.println("______________________________________________________________________________");
 	
 		try
@@ -304,6 +406,7 @@ public class airBnBeerUI {
 		{
 			System.out.println("Code: " + e.getErrorCode() + "  sqlState: " + e.getSQLState());
 		}
+		scanner.nextLine();
 		
 	}
 	/*
@@ -317,7 +420,7 @@ public class airBnBeerUI {
 
 		do
 		{
-			System.out.println("Enter your user id");
+			System.out.println("Enter your user id:");
 
 			if(input.hasNextInt())
 			{
@@ -366,19 +469,19 @@ public class airBnBeerUI {
 		System.out.println("");
 		System.out.println("1) Create user account");
 		System.out.println("2) Delete user account");
-		System.out.println("3) Create listings");
-		System.out.println("4) Find open listings");
-		System.out.println("5) To Quit press 5");
+		System.out.println("3) Create property");
+		System.out.println("4) Find available properties");
+		System.out.println("5) Update payment details");
+		System.out.println("6) To Quit press 6");
 	}
 
-	public void question(Statement statement) throws SQLException, ParseException
+	public static void question(Statement statement, Scanner scanner, int uid) throws SQLException, ParseException
 	{
 		System.out.println("Would you like to proceed or quit?");
 		System.out.println("To proceed enter 9.");
 		System.out.println("If you wish to quit enter 0.");
-		Scanner q = new Scanner(System.in);
 
-		switch (q.nextInt()) 
+		switch (scanner.nextInt()) 
 		{
 		case 0:
 			System.out.println ("Thank you and godbye.");
@@ -386,29 +489,58 @@ public class airBnBeerUI {
 
 		case 9:
 			System.out.println ("Please proceed.");
-			inputMenu(statement);
+			inputMenu(statement, scanner, uid);
 			break;
 		default:
 			System.err.println ( "Unrecognized option" );
 			break;
-		}
-		q.close();    
-
+		} 
+		
+		scanner.nextLine();
 	}
 
-	public static void inputMenu(Statement statement) throws SQLException, ParseException
+	public static void inputMenu(Statement statement, Scanner scanner, int uid) throws SQLException, ParseException
 	{
-		Scanner input = new Scanner(System.in);
 		display_menu();
 
-		switch (input.nextInt())
+		switch (scanner.nextInt())
 		{
 		case 1:
+			scanner.nextLine();
 			System.out.println("Creating user account");
-			//createUser(statement);
+			createUser(statement, scanner);
+			question(statement, scanner, uid);
 			break;
 		case 2:
+			scanner.nextLine();
 			System.out.println("Deleting user account");
+			deleteUser(statement, scanner);
+			question(statement, scanner, uid);
+			break;
+		case 3:
+			scanner.nextLine();
+			System.out.println("Creating a property");
+			createProperty(statement,uid,scanner);
+			question(statement, scanner, uid);
+			break;
+		case 4:
+			scanner.nextLine();
+			checkAvailableProp(statement, scanner);
+			question(statement, scanner, uid);
+			break;
+		case 5:
+			scanner.nextLine();
+			updatePayment(statement,uid, scanner);
+			question(statement, scanner, uid);
+			break;
+		case 6:
+			scanner.nextLine();
+			System.out.println ("Thank you and godbye.");
+			break;
+		default:
+			System.err.println ( "Unrecognized option" );
+			break;	
 		}
+		scanner.nextLine();
 	}
 }
